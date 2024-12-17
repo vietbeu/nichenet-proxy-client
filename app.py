@@ -66,15 +66,15 @@ async def is_admin(request: Request):
         raise HTTPException(status_code=403, detail="Invalid admin token")
 
 
-# @app.app.middleware("http")
-# async def block_v1_path(request: Request, call_next):
-#     if request.url.path.startswith("/api/v1/chat/completions"):
-#         return JSONResponse(
-#             content={"message": "Forbidden"},
-#             status_code=403
-#         )
-#     response = await call_next(request)
-#     return response
+@app.app.middleware("http")
+async def block_v1_path(request: Request, call_next):
+    if request.url.path.startswith("/api/v1/chat/completions"):
+        return JSONResponse(
+            content={"message": "Forbidden"},
+            status_code=403
+        )
+    response = await call_next(request)
+    return response
 
 @app.app.post("/api/v1/txt2img", dependencies=[Depends(api_key_checker)])
 @limiter.limit(API_RATE_LIMIT) # Update the rate limit
