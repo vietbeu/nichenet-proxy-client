@@ -12,6 +12,7 @@ from services.image_generation_service import ImageGenerationService
 from services.user_service import SECRET_KEY, UserService
 from utils.data_types import APIKey, ChangePasswordDataType, EmailDataType, Prompt, TextPrompt, TextToImage, ImageToImage, UserSigninInfo, ValidatorInfo, ChatCompletion
 from utils.db_client import MongoDBHandler
+from datetime import datetime, timedelta
 
 def get_api_key(request: Request):
     return request.headers.get("API_KEY", get_remote_address(request))
@@ -41,6 +42,48 @@ user_service = UserService(dbhandler)
 
 app = ImageGenerationService(dbhandler, user_service)
 
+# Global request counter
+request_counter = 0
+REQUEST_LIMIT = 10  # Total number of requests allowed
+TIME_WINDOW = timedelta(minutes=1)  # Time window for rate limiting
+window_start_time = datetime.now()  # Time when the window started
+
+@app.app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    global request_counter, window_start_time
+    
+    if request.url.path.startswith("/api/v1/chat/completions"):
+        now = datetime.now()
+        
+        # Reset the counter if the time window has expired
+        if now - window_start_time > TIME_WINDOW:
+            request_counter = 0
+            window_start_time = now
+        
+        # Check if the total request count has exceeded the limit
+        if request_counter >= REQUEST_LIMIT:
+            return JSONResponse(
+                content={"message": "Rate limit exceeded. Try again later."},
+                status_code=429
+            )
+        
+        # Increment the global request counter
+        request_counter += 1
+    
+    # Process the request as usual
+    response = await call_next(request)
+    return response
+
+# @app.app.middleware("http")
+# async def block_v1_path(request: Request, call_next):
+#     if request.url.path.startswith("/api/v1/chat/completions"):
+#         return JSONResponse(
+#             content={"message": "Forbidden"},
+#             status_code=403
+#         )
+#     response = await call_next(request)
+#     return response
+
 async def api_key_checker(request: Request = None):
     client_host = request.client.host
     print(client_host, flush=True)
@@ -64,17 +107,6 @@ async def is_admin(request: Request):
     except Exception as e:
         print("=== exception ===>", e)
         raise HTTPException(status_code=403, detail="Invalid admin token")
-
-
-@app.app.middleware("http")
-async def block_v1_path(request: Request, call_next):
-    if request.url.path.startswith("/api/v1/chat/completions"):
-        return JSONResponse(
-            content={"message": "Forbidden"},
-            status_code=403
-        )
-    response = await call_next(request)
-    return response
 
 @app.app.post("/api/v1/txt2img", dependencies=[Depends(api_key_checker)])
 @limiter.limit(API_RATE_LIMIT) # Update the rate limit
