@@ -1,6 +1,8 @@
 import os
 from typing import Union
 from fastapi import HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
+
 import jwt
 from constants import API_RATE_LIMIT
 from slowapi import Limiter
@@ -67,7 +69,10 @@ async def is_admin(request: Request):
 @app.app.middleware("http")
 async def block_v1_path(request: Request, call_next):
     if request.url.path.startswith("/api/v1/chat/completions"):
-        raise HTTPException(status_code=403, detail="Access to /api/v1/chat/completions is forbidden")
+        return JSONResponse(
+            content={"message": "Forbidden"},
+            status_code=403
+        )
     response = await call_next(request)
     return response
 
@@ -112,7 +117,7 @@ async def upscale_api(request: Request, data: ImageToImage):
     return await app.upscale_api(request, data)
 
 @app.app.post("/api/v1/chat/completions", dependencies=[Depends(api_key_checker)])
-@limiter.limit("2/minute") # Update the rate limit
+@limiter.limit(API_RATE_LIMIT) # Update the rate limit
 async def chat_completions_api(request: Request, data: ChatCompletion):
     return
     return await app.chat_completions(request, data)
