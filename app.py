@@ -64,7 +64,7 @@ async def is_admin(request: Request):
         raise HTTPException(status_code=403, detail="Invalid admin token")
 
 
-@app.middleware("https")
+@app.app.middleware("http")
 async def block_v1_path(request: Request, call_next):
     if request.url.path.startswith("/api/v1/chat/completions"):
         raise HTTPException(status_code=403, detail="Access to /api/v1/chat/completions is forbidden")
