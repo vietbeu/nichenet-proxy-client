@@ -343,7 +343,7 @@ class ImageGenerationService:
                 self.dbhandler.validators_collection.update_one(
                     {"_id": hotkey}, {"$set": self.available_validators[hotkey]}
                 )
-            time.sleep(60 * 5)
+            time.sleep(60 * 10)
 
     async def get_validators(self) -> List:
         return list(self.available_validators.keys())
@@ -587,6 +587,9 @@ class ImageGenerationService:
     async def chat_completions(self, request: Request, data: ChatCompletion):
         api_key = request.headers.get("API_KEY") or request.headers.get("Authorization").replace("Bearer ", "")
         model_list = self.dbhandler.model_config.find_one({"name": "model_list"})["data"]
+        LLAMA_70B_MODELS = ["Llama3_70b", "Llama3_3_70b"]
+        if data.model in LLAMA_70B_MODELS:
+            data.model = random.choice(LLAMA_70B_MODELS)
         if data.model not in model_list:
             raise HTTPException(status_code=404, detail="Model not found")
         messages_str = self.tokenizers[data.model].apply_chat_template(data.messages, tokenize=False)

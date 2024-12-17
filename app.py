@@ -66,15 +66,15 @@ async def is_admin(request: Request):
         raise HTTPException(status_code=403, detail="Invalid admin token")
 
 
-@app.app.middleware("http")
-async def block_v1_path(request: Request, call_next):
-    if request.url.path.startswith("/api/v1/chat/completions"):
-        return JSONResponse(
-            content={"message": "Forbidden"},
-            status_code=403
-        )
-    response = await call_next(request)
-    return response
+# @app.app.middleware("http")
+# async def block_v1_path(request: Request, call_next):
+#     if request.url.path.startswith("/api/v1/chat/completions"):
+#         return JSONResponse(
+#             content={"message": "Forbidden"},
+#             status_code=403
+#         )
+#     response = await call_next(request)
+#     return response
 
 @app.app.post("/api/v1/txt2img", dependencies=[Depends(api_key_checker)])
 @limiter.limit(API_RATE_LIMIT) # Update the rate limit
@@ -82,7 +82,7 @@ async def txt2img_api2(request: Request, data: TextToImage):
     return await app.txt2img_api(request, data, CLASSIFIER_URL)
 
 @app.app.post("/get_credentials")
-# @limiter.limit(API_RATE_LIMIT) # Update the rate limit
+@limiter.limit(API_RATE_LIMIT) # Update the rate limit
 async def get_credentials(request: Request, validator_info: ValidatorInfo):
     return await app.get_credentials(request, validator_info)
 
@@ -119,7 +119,6 @@ async def upscale_api(request: Request, data: ImageToImage):
 @app.app.post("/api/v1/chat/completions", dependencies=[Depends(api_key_checker)])
 @limiter.limit(API_RATE_LIMIT) # Update the rate limit
 async def chat_completions_api(request: Request, data: ChatCompletion):
-    return
     return await app.chat_completions(request, data)
 
 @app.app.post("/api/v1/signin")
